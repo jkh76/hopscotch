@@ -302,6 +302,7 @@ table.res th{color:var(--dim);font-weight:400;font-size:12px}
       <li>내 차례가 되면 내 땅 안에 돌을 놓고 <b>세 번</b> 튕겨요. 1·2번째는 내 땅 <b>밖</b>에 멈춰야 하고, 3번째에 내 땅 <b>안</b>으로 돌아와야 해요.</li>
       <li>성공하면 시작점 → 1번 → 2번 → 도착점을 이은 모양만큼 빈 땅이 내 땅이 돼요.</li>
       <li>실패: 테두리에 닿음, 선(경계)에 걸쳐 멈춤, 남의 땅에 들어가거나 경로가 남의 땅을 지남, 1번째에 못 나감, 2번째에 미리 돌아옴, 3번째에 못 돌아옴, 경로가 8자로 꼬임.</li>
+      <li><b>구멍 메우기</b>: 땅을 얻은 뒤 내 땅에 완전히 둘러싸인 빈 곳은 자동으로 내 땅이 돼요. 벽이나 다른 사람 땅에 닿은 빈 곳은 그대로예요.</li>
       <li><b>보너스 뼘</b>: 성공한 턴에 한 번, 내 땅 경계에서 22cm 이내의 선을 그어 내 땅·테두리와 함께 막히는 빈 땅을 가져와요.</li>
       <li><b>잡아먹기</b>: 보너스 뼘 선 끝이 다른 플레이어 땅에 닿으면 그 사람 땅을 <b>모두</b> 빼앗고, 그 사람은 탈락해요. 한 턴에 한 명만, 선이 제3자 땅을 지나가면 안 돼요. 닿을 수 있는 상대는 빨간 선으로 깜빡여요.</li>
       <li>각도는 마우스로 가리키고 클릭하면 고정돼요(다시 클릭하면 풀림). ←→ 키로도 정할 수 있어요. 마우스 휠·두 손가락·+/− 버튼으로 확대하고, 오른쪽 버튼으로 끌어 화면을 옮겨요. 튕기기는 <b>두 번 클릭</b>(Space)해요. 첫 클릭으로 강도를 정하면 그 자리가 표시되고, 다시 움직이는 막대를 그 자리에 맞춰 한 번 더 클릭해요. 노란 칸은 퍼펙트, 민트 칸(±5%)은 정상, 주황 칸(±10%)은 작은 삑사리, 그 밖은 큰 삑사리예요. Esc로 첫 클릭을 취소해요.</li>
@@ -1244,8 +1245,25 @@ function focusPlayer(id) {
   if (G.play) return;   // 이미 튕기는 중이면 카메라를 건드리지 않음
   tw(view, { zoom: base.zoom, cx: base.cx, cy: base.cy, duration: 0.9, ease: 'power2.inOut' });
 }
+// 돌이 화면 가장자리 밖으로 나가지 않게 화면 중심을 옮김 (margin: 가장자리 여유 비율)
+function keepInView(v, x, y, margin) {
+  const half = (G.S + 2 * M) / (2 * v.zoom), h = half * (1 - 2 * margin);
+  let cx = v.cx, cy = v.cy;
+  if (x < cx - h) cx = x + h; else if (x > cx + h) cx = x - h;
+  if (y < cy - h) cy = y + h; else if (y > cy + h) cy = y - h;
+  return { cx, cy };
+}
+// 튕기는 동안 돌을 따라 화면을 부드럽게 이동
+function followStone(dt) {
+  if (!G || !G.play || G.play.hold || !G.stone.vis || view.zoom <= 1.01) return;
+  if (hasGsap() && gsap.isTweening(view)) return;
+  const t = keepInView(view, G.stone.x, G.stone.y, 0.18), f = Math.min(1, dt * 10);
+  view.cx += (t.cx - view.cx) * f; view.cy += (t.cy - view.cy) * f;
+}
 function camBack(d) { resetCam(view.zoom > base.zoom + 0.3 ? 1100 : d); }
 function resetCam(delay) {
+  // 멈춘 돌이 확대 화면 밖이면 돌이 보이게 기본 화면을 옮김
+  if (G && G.stone.vis && base.zoom > 1.01) { const t = keepInView(base, G.stone.x, G.stone.y, 0.12); base.cx = t.cx; base.cy = t.cy; clampBase(); }
   tw(TS, { v: 1, duration: 0.3, delay: (delay || 0) / 1000 });
   tw(view, { zoom: base.zoom, cx: base.cx, cy: base.cy, duration: 0.7, delay: (delay || 0) / 1000, ease: 'power2.inOut' });
 }
@@ -1784,6 +1802,30 @@ function updatePlay(dt) {
   sfx.slide(sp);
   if (Math.random() < sp * 1.2) G.particles.push({ x: G.stone.x + rand(-1, 1), y: G.stone.y + rand(-1, 1), vx: rand(-4, 4), vy: rand(-4, 4), life: rand(0.3, 0.7), max: 0.7, size: rand(0.3, 0.8), col: '195,228,220' });
 }
+// 내 땅에 완전히 둘러싸인 빈 땅(구멍)을 내 땅으로 채움
+// 테두리(경기장 벽)나 다른 사람 땅에 닿은 빈 땅은 그대로 둠
+function fillHoles(me) {
+  const { N, grid } = G, NN = N * N, seen = new Uint8Array(NN), q = new Int32Array(NN);
+  let filled = 0;
+  for (let s0 = 0; s0 < NN; s0++) {
+    if (grid[s0] !== 0 || seen[s0]) continue;
+    let head = 0, tail = 0, open = false; q[tail++] = s0; seen[s0] = 1;
+    while (head < tail) {
+      const k = q[head++], i = k % N;
+      if (i === 0 || i === N - 1 || k < N || k >= NN - N) open = true;   // 판 가장자리
+      const nb = [i > 0 ? k - 1 : -1, i < N - 1 ? k + 1 : -1, k >= N ? k - N : -1, k < NN - N ? k + N : -1];
+      for (const n of nb) {
+        if (n < 0) continue;
+        const o = grid[n];
+        if (o === 0) { if (!seen[n]) { seen[n] = 1; q[tail++] = n; } }
+        else if (o !== me) open = true;   // 벽(255)이나 다른 사람 땅
+      }
+    }
+    if (!open) { for (let t = 0; t < tail; t++) grid[q[t]] = me; filled += tail; }
+  }
+  if (filled) { G.dirty = true; (G.dirtyIds || (G.dirtyIds = new Set())).add(me); }
+  return filled;
+}
 function updateGain(dt) {
   const A = G.gainAnim; if (!A) return;
   A.t += dt;
@@ -1795,7 +1837,7 @@ function updateGain(dt) {
     if (A.ptr % 120 === 0) { const q = cxy(k); const c = COLORS[A.me].rgb; G.particles.push({ x: q.x, y: q.y, vx: rand(-6, 6), vy: rand(-10, -2), life: 0.6, max: 0.6, size: rand(0.4, 0.9), col: `${(c[0] + 255) >> 1},${(c[1] + 255) >> 1},${(c[2] + 255) >> 1}` }); }
   }
   G.dirty = true; (G.dirtyIds || (G.dirtyIds = new Set())).add(A.me); if (A.from) G.dirtyIds.add(A.from);
-  if (f >= 1) { for (; A.ptr < A.cells.length; A.ptr++) { const k = A.cells[A.ptr]; if (G.grid[k] === 0 || (A.from && G.grid[k] === A.from)) G.grid[k] = A.me; } G.gainAnim = null; recount(); A.done(); }
+  if (f >= 1) { for (; A.ptr < A.cells.length; A.ptr++) { const k = A.cells[A.ptr]; if (G.grid[k] === 0 || (A.from && G.grid[k] === A.from)) G.grid[k] = A.me; } G.gainAnim = null; fillHoles(A.me); recount(); A.done(); }
 }
 function updateFx(dt) {
   for (const p of G.particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= Math.pow(0.05, dt); p.vy *= Math.pow(0.05, dt); p.life -= dt; }
@@ -1809,7 +1851,7 @@ function updateFx(dt) {
 let lastT = performance.now();
 function loop(now) {
   const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
-  if (G) { updateGauge(dt, now / 1000); updatePlay(dt); updateGain(dt); updateFx(dt); cineUpdate(dt); }
+  if (G) { updateGauge(dt, now / 1000); updatePlay(dt); followStone(dt); updateGain(dt); updateFx(dt); cineUpdate(dt); }
   render(now / 1000);
   requestAnimationFrame(loop);
 }
