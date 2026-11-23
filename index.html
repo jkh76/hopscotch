@@ -109,11 +109,21 @@ aside{width:300px;background:var(--panel);border-left:1px solid var(--line);padd
 #emptyBox{font-size:13px;color:var(--dim);display:flex;justify-content:space-between}
 .ctl label{font-size:13px;color:var(--dim);display:flex;justify-content:space-between}
 .ctl input[type=range]{width:100%;accent-color:var(--accent)}
-#gauge{position:relative;height:26px;border-radius:8px;background:linear-gradient(90deg,#a8e6c1,#ffe08a 55%,#ffab91);
+#gauge{position:relative;touch-action:manipulation;user-select:none;-webkit-user-select:none;height:26px;border-radius:8px;background:linear-gradient(90deg,#a8e6c1,#ffe08a 55%,#ffab91);
   border:2px solid #cfe6e2;cursor:pointer;overflow:hidden;margin:4px 0 8px}
 #gCover{position:absolute;top:0;bottom:0;right:0;background:rgba(250,255,254,.85)}
-#gNeedle{position:absolute;top:-2px;bottom:-2px;width:4px;background:#2f9e8f;box-shadow:0 0 6px rgba(47,158,143,.8);margin-left:-2px}
-#shootBtn{width:100%;font-size:17px;padding:10px}
+#gNeedle{position:absolute;top:-2px;bottom:-2px;width:4px;background:#2f9e8f;box-shadow:0 0 6px rgba(47,158,143,.8);margin-left:-2px;z-index:3}
+#gZones{position:absolute;inset:0;display:none;background:rgba(250,255,254,.82)}
+#gZones.on{display:block}
+#gZones>i{position:absolute;top:0;bottom:0}
+#gB10{background:#ffc9a8}
+#gB5{background:#9fe3cf}
+#gPf{background:#ffd54f;box-shadow:0 0 6px rgba(255,190,40,.9)}
+#gMark{width:3px;margin-left:-1.5px;background:#2f4f4b;z-index:2}
+#gauge.st2{border-color:#4fb8a8;box-shadow:0 0 0 2px rgba(79,184,168,.25)}
+.pop.slip.small b{font-size:30px;color:#ff8a3c}
+.pop.perfect{color:#e0a800;font-size:34px;text-shadow:0 2px 0 #fff,0 0 14px rgba(255,213,79,.9);letter-spacing:2px}
+#shootBtn{width:100%;font-size:17px;padding:10px;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 #bonusBox p{margin:0 0 8px;font-size:13px;line-height:1.5}
 .small{font-size:12px;color:var(--dim)}
 .chk{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
@@ -216,8 +226,8 @@ table.res th{color:var(--dim);font-weight:400;font-size:12px}
       </div>
       <div class="box ctl" id="ctlBox">
         <label><span>각도 (마우스로 가리키기)</span><b id="angVal">0°</b></label>
-        <label style="margin-top:8px"><span>강도 (막대를 보고 클릭)</span><b id="powVal">0</b></label>
-        <div id="gauge"><div id="gCover"></div><div id="gNeedle"></div></div>
+        <label style="margin-top:8px"><span id="gLabel">① 강도 (막대를 보고 클릭)</span><b id="powVal">0</b></label>
+        <div id="gauge"><div id="gCover"></div><div id="gZones"><i id="gB10"></i><i id="gB5"></i><i id="gPf"></i><i id="gMark"></i></div><div id="gNeedle"></div></div>
         <button class="btn primary" id="shootBtn">튕기기 (Space)</button>
         <div id="bonusBox" style="display:none">
           <p><b>보너스 뼘</b><br>내 땅 경계에서 드래그해 22cm 이내의 선을 그으세요. 끝은 내 땅이나 경기장 테두리에 닿아야 하고, 선으로 막힌 빈 땅을 가져옵니다.</p>
@@ -236,7 +246,7 @@ table.res th{color:var(--dim);font-weight:400;font-size:12px}
       <div class="box"><div class="small" style="margin-bottom:4px">기록</div><div id="log"></div></div>
     </aside>
   </main>
-  <footer id="ver">v0.6 2026-11-23</footer>
+  <footer id="ver">v0.7 2026-11-23</footer>
 </div>
 
 <!-- 설정 -->
@@ -262,7 +272,7 @@ table.res th{color:var(--dim);font-weight:400;font-size:12px}
     <div class="grid2">
       <label class="chk"><input type="checkbox" id="vJitter" checked> 손 떨림</label>
       <label class="chk"><input type="checkbox" id="vGauge" checked> 게이지 가속</label>
-      <label class="chk"><input type="checkbox" id="vSlip" checked> 삑사리 (5%)</label>
+      <label class="chk"><input type="checkbox" id="vSlip" checked> 삑사리 (정확도 클릭)</label>
       <label class="chk"><input type="checkbox" id="vTerrain" checked> 땅 질감</label>
     </div>
     <div style="display:flex;gap:8px;margin-top:18px">
@@ -283,8 +293,8 @@ table.res th{color:var(--dim);font-weight:400;font-size:12px}
       <li>성공하면 시작점 → 1번 → 2번 → 도착점을 이은 모양만큼 빈 땅이 내 땅이 돼요.</li>
       <li>실패: 테두리에 닿음, 선(경계)에 걸쳐 멈춤, 남의 땅에 들어가거나 경로가 남의 땅을 지남, 1번째에 못 나감, 2번째에 미리 돌아옴, 3번째에 못 돌아옴, 경로가 8자로 꼬임.</li>
       <li><b>보너스 뼘</b>: 성공한 턴에 한 번, 내 땅 경계에서 22cm 이내의 선을 그어 내 땅·테두리와 함께 막히는 빈 땅을 가져와요.</li>
-      <li>각도는 마우스로 가리키고 클릭하면 고정돼요(다시 클릭하면 풀림). ←→ 키로도 정할 수 있어요. 마우스 휠·두 손가락·+/− 버튼으로 확대하고, 오른쪽 버튼으로 끌어 화면을 옮겨요. 강도는 계속 움직이는 막대를 보고 클릭(Space)해서 정해요.</li>
-      <li>변수: 세게 칠수록 손이 떨려 방향이 흔들리고, 게이지 속도가 들쭉날쭉하고, 5% 확률로 삑사리가 나서 힘이 설정값의 20~70%로 줄고 방향도 3~10° 틀어져요. 모래·자갈·단단한 땅은 미끄러지는 정도가 달라요.</li>
+      <li>각도는 마우스로 가리키고 클릭하면 고정돼요(다시 클릭하면 풀림). ←→ 키로도 정할 수 있어요. 마우스 휠·두 손가락·+/− 버튼으로 확대하고, 오른쪽 버튼으로 끌어 화면을 옮겨요. 튕기기는 <b>두 번 클릭</b>(Space)해요. 첫 클릭으로 강도를 정하면 그 자리가 표시되고, 다시 움직이는 막대를 그 자리에 맞춰 한 번 더 클릭해요. 노란 칸은 퍼펙트, 민트 칸(±5%)은 정상, 주황 칸(±10%)은 작은 삑사리, 그 밖은 큰 삑사리예요. Esc로 첫 클릭을 취소해요.</li>
+      <li>변수: 세게 칠수록 손이 떨려 조준 방향이 흔들리고(퍼펙트면 안 흔들림), 게이지 속도가 들쭉날쭉해요. 정확도 클릭이 막대보다 왼쪽이면 왼쪽으로, 오른쪽이면 오른쪽으로 틀어져요. 작은 삑사리는 방향 3~5°·힘 85~95%, 큰 삑사리는 방향 15~20°·힘 30~60%에 돌이 휘어 나가요. 모래·자갈·단단한 땅은 미끄러지는 정도가 달라요.</li>
       <li>빈 땅이 5% 이하로 남거나, 모두가 연속 3턴 실패하면 끝나요. 가장 넓은 땅을 가진 사람이 우승! (동점이면 성공 횟수가 적은 쪽)</li>
     </ol>
     <div style="text-align:right"><button class="btn primary" id="closeRules">닫기</button></div>
@@ -348,9 +358,9 @@ const COLORS = [null,
   { hex: '#b08cf0', rgb: [176, 140, 240] }];
 const TER = { sand: { mult: 1.5 }, gravel: { mult: 1.25 }, hard: { mult: 0.7 } };
 const DIFF = {
-  easy:   { key: 'easy',   ea: 8,   ep: 15, N: 160, K: 8,  risk: 2.5, bonus: 15, label: '쉬움' },
-  normal: { key: 'normal', ea: 4,   ep: 8,  N: 360, K: 10, risk: 1.4, bonus: 30, label: '보통' },
-  hard:   { key: 'hard',   ea: 1.5, ep: 3,  N: 700, K: 12, risk: 1.0, bonus: 50, label: '어려움' }};
+  easy:   { key: 'easy',   ea: 8,   ep: 15, acc: 5, N: 160, K: 8,  risk: 2.5, bonus: 15, label: '쉬움' },
+  normal: { key: 'normal', ea: 4,   ep: 8,  acc: 3, N: 360, K: 10, risk: 1.4, bonus: 30, label: '보통' },
+  hard:   { key: 'hard',   ea: 1.5, ep: 3,  acc: 1.5, N: 700, K: 12, risk: 1.0, bonus: 50, label: '어려움' }};
 
 // ===================== 유틸 =====================
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -430,7 +440,7 @@ const pct = id => G.counts[id] / G.arena * 100;
 function terrainAt(x, y) { for (const p of G.patches) { if ((x - p.x) ** 2 + (y - p.y) ** 2 < p.r * p.r) return p; } return null; }
 
 // ===================== 물리 =====================
-function simulate(x, y, ang, pow, me, rec) {
+function simulate(x, y, ang, pow, me, rec, spin) {
   let h = ang * Math.PI / 180, v = VMAX * clamp(pow, 0, 100) / 100;
   const path = rec ? [{ x, y, v }] : null;
   let result = 'stop', steps = 0;
@@ -439,6 +449,7 @@ function simulate(x, y, ang, pow, me, rec) {
     const p = G.patches.length ? terrainAt(x, y) : null;
     let m = 1;
     if (p) { m = TER[p.type].mult; if (p.type === 'gravel') h += Math.sin(x * 0.8 + y * 0.6 + p.seed) * 0.6 * SIM_DT; }
+    if (spin) h += spin * SIM_DT * v / VMAX;
     v -= DEC * m * SIM_DT; if (v < 0) v = 0;
     const sx = Math.sin(h), sy = -Math.cos(h);
     x += sx * v * SIM_DT; y += sy * v * SIM_DT;
@@ -449,16 +460,24 @@ function simulate(x, y, ang, pow, me, rec) {
   return { x, y, result, path };
 }
 function jitterAmp(p) { return p <= 30 ? 1 : 1 + 5 * (p - 30) / 70; }
-function applyVariance(a, p) {
-  let slip = null;
-  if (G.set.jitter) a += rand(-1, 1) * jitterAmp(p);
-  if (G.set.slip && Math.random() < 0.05) {
-    // 삑사리: 강도는 설정값의 20~70%, 방향은 3~10° 살짝 틀어짐
-    const ratio = rand(0.2, 0.7), da = (Math.random() < 0.5 ? -1 : 1) * rand(3, 10);
+// 정확도 판정 (게이지 전체 길이 기준 %)
+const ACC = { pf: 1.5, ok: 5, small: 10 };
+const GAUGE2_SPEED = 0.5;   // 정확도 막대 속도 (강도 막대 기본 속도 대비)
+function gradeOf(err) { const e = Math.abs(err); return e <= ACC.pf ? 'perfect' : e <= ACC.ok ? 'ok' : e <= ACC.small ? 'small' : 'big'; }
+function applyVariance(a, p, err) {
+  const grade = err == null ? 'ok' : gradeOf(err);
+  // 손 떨림은 조준 방향에만, 퍼펙트면 없음
+  if (G.set.jitter && grade !== 'perfect') a += rand(-1, 1) * jitterAmp(p);
+  let slip = null, spin = 0;
+  if (grade === 'small' || grade === 'big') {
+    const dir = err < 0 ? -1 : 1;   // 막대 왼쪽에서 누르면 왼쪽, 오른쪽이면 오른쪽
+    const big = grade === 'big';
+    const ratio = big ? rand(0.3, 0.6) : rand(0.85, 0.95), da = dir * (big ? rand(15, 20) : rand(3, 5));
     p *= ratio; a += da;
-    slip = { ratio, da };
+    if (big) spin = dir * rand(0.5, 0.9);
+    slip = { ratio, da, big, err };
   }
-  return { a: norm360(a), p: clamp(p, 1, 100), slip };
+  return { a: norm360(a), p: clamp(p, 1, 100), slip, spin, grade };
 }
 function aiExec(a, p, d) { return { a: norm360(a + rand(-d.ea, d.ea)), p: clamp(p + rand(-d.ep, d.ep), 3, 100) }; }
 
@@ -470,7 +489,7 @@ function newGame(cfg) {
     phase: 'idle', flick: 0, stops: [], trails: [], startPt: null,
     stone: { x: 0, y: 0, rot: 0, vis: false, flash: 0, scale: 1 }, patches: [], counts: [0, 0, 0, 0, 0], arena: 0,
     particles: [], rings: [], play: null, gainAnim: null, bonus: null, pvOn: false,
-    gauge: { ph: 0, val: 0, ai: false, t: 0 }, aimAng: 0, over: false, ai: null, turnStart: 0, turnOk: false };
+    gauge: { ph: 0, val: 0, ai: false, t: 0, st: 0, mark: null }, aimAng: 0, over: false, ai: null, turnStart: 0, turnOk: false };
   let arena = 0;
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
     const x = (i + 0.5) * C, y = (j + 0.5) * C;
@@ -641,6 +660,7 @@ function startTurn() {
   const p = cur();
   G.phase = 'place'; G.flick = 0; G.stops = []; G.trails = []; G.startPt = null; G.stone.vis = false;
   G.bonus = null; G.bonusHint = null; clearPreview(); G.turnStart = G.counts[p.id]; G.turnOk = false;
+  resetGauge();
   // 차례가 바뀌면 전체 화면 → 잠시 뒤 이번 플레이어 땅으로 확대
   base.zoom = 1; base.cx = base.cy = G.S / 2; resetCam(0);
   later(950, () => focusPlayer(p.id));
@@ -654,21 +674,29 @@ function placeStone(x, y) {
   tw(G.stone, { scale: 1, duration: 0.35, ease: 'back.out(2)' });
   dust(x, y, 6, 0.4);
 }
-function shoot(a, p) {
+function shoot(a, p, err) {
   if (G.phase !== 'aim' || !G.stone.vis) return;
-  const me = cur().id, n = applyVariance(a, p);
+  const me = cur().id, n = applyVariance(a, p, err);
+  resetGauge();
   G.phase = 'moving'; setControls(); hint('');
-  const res = simulate(G.stone.x, G.stone.y, n.a, n.p, me, true);
+  const res = simulate(G.stone.x, G.stone.y, n.a, n.p, me, true, n.spin);
   G.play = { res, t: 0, slowOn: false, last: G.flick === 2, close: closeCall(res) };
   sfx.flick(n.p);
   G.rings.push({ x: G.stone.x, y: G.stone.y, t: 0, col: COLORS[me].hex });
   const back = (n.a + 180) * Math.PI / 180;
   for (let i = 0; i < 10; i++) { const s = rand(0.3, 1) * 30 * n.p / 100, aa = back + rand(-0.8, 0.8); G.particles.push({ x: G.stone.x, y: G.stone.y, vx: Math.sin(aa) * s, vy: -Math.cos(aa) * s, life: rand(0.3, 0.7), max: 0.7, size: rand(0.3, 0.8), col: '185,220,212' }); }
   if (n.p > 70) view.shake = Math.min(9, (n.p - 70) / 3.5);
+  if (n.grade === 'perfect') {
+    popupWorld('퍼펙트!', G.stone.x, G.stone.y - 12, 'perfect'); sfx.perfect();
+    for (let i = 0; i < 22; i++) { const a = rand(0, 6.28), sp = rand(8, 26); G.particles.push({ x: G.stone.x, y: G.stone.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: rand(0.5, 1), max: 1, size: rand(0.3, 0.8), col: pick(['255,213,79', '255,236,150', '255,255,255']) }); }
+  }
   if (n.slip) {
-    popupWorld(`<b>삑사리!</b>앗, 손가락이 미끄러졌어요<small>힘 ${Math.round(n.slip.ratio * 100)}% · 방향 ${n.slip.da > 0 ? '+' : ''}${n.slip.da.toFixed(0)}°</small>`, G.stone.x, G.stone.y - 14, 'slip');
-    sfx.slip(); view.shake = Math.max(view.shake, 6);
-    for (let i = 0; i < 26; i++) { const a = rand(0, 6.28), sp = rand(10, 34); G.particles.push({ x: G.stone.x, y: G.stone.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: rand(0.5, 1.1), max: 1.1, size: rand(0.4, 1.1), col: pick(['255,170,60', '255,210,90', '255,120,80']) }); }
+    const sl = n.slip, side = sl.da < 0 ? '왼쪽' : '오른쪽';
+    popupWorld(`<b>${sl.big ? '큰 삑사리!' : '삑사리'}</b>${sl.big ? '앗, 손가락이 미끄러졌어요' : '살짝 빗맞았어요'}<small>정확도 ${sl.err > 0 ? '+' : ''}${sl.err.toFixed(1)}% · 힘 ${Math.round(sl.ratio * 100)}% · ${side} ${Math.abs(sl.da).toFixed(0)}°</small>`, G.stone.x, G.stone.y - 14, sl.big ? 'slip' : 'slip small');
+    if (sl.big) {
+      sfx.slip(); view.shake = Math.max(view.shake, 6);
+      for (let i = 0; i < 26; i++) { const a = rand(0, 6.28), sp = rand(10, 34); G.particles.push({ x: G.stone.x, y: G.stone.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: rand(0.5, 1.1), max: 1.1, size: rand(0.4, 1.1), col: pick(['255,170,60', '255,210,90', '255,120,80']) }); }
+    } else { sfx.tick(); view.shake = Math.max(view.shake, 2.5); }
   }
 }
 function closeCall(res) {
@@ -1029,11 +1057,25 @@ async function aiTurn() {
 async function aiShoot(a, p, gid) {
   const e = aiExec(a, p, G.ai.d);
   await tweenAngle(e.a); if (!alive(gid)) return;
-  G.gauge.ai = true; G.gauge.val = 0;
-  await new Promise(r => tw(G.gauge, { val: e.p, duration: (0.25 + e.p / 220) * (aiFast() ? 0.4 : 1), ease: 'power1.inOut', onComplete: r }));
+  const g = G.gauge, fast = aiFast() ? 0.4 : 1;
+  g.ai = true; g.val = 0;
+  await new Promise(r => tw(g, { val: e.p, duration: (0.25 + e.p / 220) * fast, ease: 'power1.inOut', onComplete: r }));
+  if (!alive(gid)) return;
+  let err = null;
+  if (G.set.slip) {
+    // 정확도 클릭: 난이도별 오차(정규분포)
+    const z = Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(6.2832 * Math.random());
+    err = clamp(z * G.ai.d.acc, -40, 40);
+    setMark(e.p); sfx.tick();
+    await wait(200 * fast); if (!alive(gid)) return;
+    const tgt = clamp(e.p + err, 0, 100); err = tgt - e.p;
+    const from = e.p > 50 ? 0 : 100; g.val = from;
+    await new Promise(r => tw(g, { val: tgt, duration: (0.2 + Math.abs(tgt - from) / 260) * fast, ease: 'none', onComplete: r }));
+    if (!alive(gid)) return;
+  }
   await wait(250); if (!alive(gid)) return;
-  G.gauge.ai = false;
-  shoot(e.a, e.p);
+  g.ai = false;
+  shoot(e.a, e.p, err);
 }
 async function aiNext() {
   const me = cur().id, d = G.ai.d, gid = G.gid;
@@ -1125,7 +1167,7 @@ function worldToCss(x, y) { const k = baseK() * view.zoom / dpr; return { x: (x 
 function popupWorld(text, x, y, cls, color) {
   const fx = $('fx'), r = cv.getBoundingClientRect(), wr = $('stageWrap').getBoundingClientRect();
   const s = worldToCss(x, y);
-  const el = document.createElement('div'); el.className = 'pop ' + (cls || ''); if (cls === 'slip') el.innerHTML = text; else el.textContent = text;
+  const el = document.createElement('div'); el.className = 'pop ' + (cls || ''); if (cls && cls.startsWith('slip')) el.innerHTML = text; else el.textContent = text;
   if (color) el.style.color = color;
   el.style.left = (r.left - wr.left + s.x) + 'px'; el.style.top = (r.top - wr.top + s.y) + 'px';
   fx.appendChild(el);
@@ -1133,7 +1175,7 @@ function popupWorld(text, x, y, cls, color) {
   const ew = el.offsetWidth, eh = el.offsetHeight, W = wr.width, H = wr.height;
   el.style.left = clamp(parseFloat(el.style.left), ew / 2 + 8, W - ew / 2 - 64) + 'px';
   el.style.top = clamp(parseFloat(el.style.top), eh / 2 + 8, H - eh / 2 - 8) + 'px';
-  setTimeout(() => el.remove(), cls === 'slip' ? 2900 : 1600);
+  setTimeout(() => el.remove(), cls && cls.startsWith('slip') ? 2900 : 1600);
 }
 let bannerTimer = null;
 function showBanner(text, color, sub) {
@@ -1179,6 +1221,7 @@ const sfx = (() => {
     fill(d) { noise(d, 500, 0.7, 0.22, 'bandpass', 3200); },
     bonus() { noise(0.28, 3800, 0.5, 0.22, 'highpass'); },
     tick() { tone('square', 1200, null, 0.03, 0.06); },
+    perfect() { [1047, 1319, 1568, 2093].forEach((f, i) => setTimeout(() => tone('sine', f, null, 0.14, 0.18), i * 55)); },
     turn() { tone('sine', 660, 880, 0.12, 0.1); }
   };
 })();
@@ -1276,17 +1319,33 @@ function syncAngle() {
   const a = Math.round(norm360(G.aimAng)) % 360;
   $('angVal').textContent = `${a}° (${DIRNAME[Math.round(a / 45) % 8]})`;
 }
+function resetGauge() {
+  const g = G.gauge; g.st = 0; g.mark = null;
+  $('gZones').classList.remove('on'); $('gauge').classList.remove('st2');
+  $('shootBtn').textContent = G.set.slip ? '강도 정하기 (Space)' : '튕기기 (Space)';
+  $('gLabel').textContent = G.set.slip ? '① 강도 (막대를 보고 클릭)' : '강도 (막대를 보고 클릭)';
+}
+function setMark(m) {
+  const g = G.gauge; g.st = 1; g.mark = m;
+  const z = (id, w) => { const a = clamp(m - w, 0, 100), b = clamp(m + w, 0, 100); $(id).style.left = a + '%'; $(id).style.width = (b - a) + '%'; };
+  z('gB10', ACC.small); z('gB5', ACC.ok); z('gPf', ACC.pf); $('gMark').style.left = m + '%';
+  $('gZones').classList.add('on'); $('gauge').classList.add('st2');
+  $('gLabel').textContent = `② 정확도 (강도 ${Math.round(m)}에 맞춰 클릭)`;
+  $('shootBtn').textContent = '정확도 맞추기 (Space)';
+}
 function updateGauge(dt, time) {
   const g = G.gauge;
   if (!g.ai && G.phase === 'aim' && cur().type === 'human') {
     let mul = 1;
-    if (G.set.gauge) mul = clamp(1 + 0.55 * Math.sin(time * 2.1) + 0.35 * Math.sin(time * 5.3 + 1), 0.35, 2.2);
+    // 정확도 단계(st 1)는 가속 없이 일정한 속도
+    if (G.set.gauge && g.st !== 1) mul = clamp(1 + 0.55 * Math.sin(time * 2.1) + 0.35 * Math.sin(time * 5.3 + 1), 0.35, 2.2);
+    if (g.st === 1) mul = GAUGE2_SPEED;
     g.ph = (g.ph + dt * (2 / 1.25) * mul) % 2;
     g.val = g.ph < 1 ? g.ph * 100 : (2 - g.ph) * 100;
   }
   const v = clamp(g.val, 0, 100);
-  $('gCover').style.width = (100 - v) + '%'; $('gNeedle').style.left = v + '%';
-  $('powVal').textContent = Math.round(v);
+  $('gCover').style.width = (g.st === 1 ? 0 : 100 - v) + '%'; $('gNeedle').style.left = v + '%';
+  $('powVal').textContent = g.st === 1 ? `${Math.round(g.mark)} · ${v - g.mark >= 0 ? '+' : ''}${Math.round(v - g.mark)}` : Math.round(v);
 }
 
 // ===================== 렌더 =====================
@@ -1363,7 +1422,7 @@ function render(time) {
   if (G.phase === 'aim' && G.stone.vis && !G.play) {
     const a = G.aimAng * Math.PI / 180, L = 20, s = G.stone;
     if (G.set.jitter) {
-      const amp = jitterAmp(G.gauge.val) * Math.PI / 180;
+      const amp = jitterAmp(G.gauge.st === 1 ? G.gauge.mark : G.gauge.val) * Math.PI / 180;
       ctx.fillStyle = 'rgba(60,110,105,0.12)'; ctx.beginPath(); ctx.moveTo(s.x, s.y);
       ctx.lineTo(s.x + Math.sin(a - amp) * L, s.y - Math.cos(a - amp) * L); ctx.lineTo(s.x + Math.sin(a + amp) * L, s.y - Math.cos(a + amp) * L); ctx.closePath(); ctx.fill();
     }
@@ -1578,11 +1637,19 @@ cv.addEventListener('pointerup', e => {
   }
   else { if (r) popupWorld(r.reason, G.bonus.Q.x, G.bonus.Q.y, 'warn'); G.bonus = null; clearPreview(); hint('보너스 뼘: 다시 그어 보거나 건너뛰세요'); }
 });
-const AIM_HINT = '마우스로 방향을 가리키고 클릭하면 고정 (←→ 키도 가능) · 강도 막대를 보고 Space';
+const AIM_HINT = '마우스로 방향을 가리키고 클릭하면 고정 (←→ 키도 가능) · 강도 → 정확도 순서로 Space 두 번';
 function aimAt(w) { const s = G.stone; if (hyp(w.x - s.x, w.y - s.y) < 2) return; G.aimAng = angTo(s.x, s.y, w.x, w.y); syncAngle(); }
-function humanShoot() { if (!G || G.phase !== 'aim' || cur().type !== 'human' || !G.stone.vis) return; sfx.init(); shoot(G.aimAng, G.gauge.val); }
-$('shootBtn').addEventListener('click', humanShoot);
-$('gauge').addEventListener('click', humanShoot);
+function humanShoot() {
+  if (!G || G.phase !== 'aim' || cur().type !== 'human' || !G.stone.vis) return;
+  sfx.init(); const g = G.gauge;
+  if (!G.set.slip) { shoot(G.aimAng, g.val, null); return; }
+  if (g.st !== 1) { setMark(g.val); sfx.tick(); hint('표시한 강도에 맞춰 한 번 더 클릭 (Space) · Esc 취소'); return; }
+  shoot(G.aimAng, g.mark, g.val - g.mark);
+}
+// 누르는 순간 판정 (click은 손을 뗄 때라 휴대폰에서 늦게 인식됨)
+const pressShoot = e => { if (e.button > 0) return; e.preventDefault(); humanShoot(); };
+$('shootBtn').addEventListener('pointerdown', pressShoot);
+$('gauge').addEventListener('pointerdown', pressShoot);
 $('skipBonus').addEventListener('click', () => { if (G && G.phase === 'bonus' && cur().type === 'human') { $('bonusAsk').classList.add('hidden'); hint(''); finishBonus(null); } });
 $('baYes').addEventListener('click', () => {
   if (!G || G.phase !== 'bonus' || !G.bonus || !G.bonus.pending) return;
@@ -1598,6 +1665,7 @@ window.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
   if (cur().type !== 'human') return;
   if (e.code === 'Space') { e.preventDefault(); humanShoot(); }
+  if (e.code === 'Escape' && G.phase === 'aim' && G.gauge.st === 1) { resetGauge(); hint(AIM_HINT); }
   else if ((e.code === 'ArrowLeft' || e.code === 'ArrowRight') && (G.phase === 'aim' || G.phase === 'place')) {
     e.preventDefault(); G.aimLock = true; G.aimAng = norm360(G.aimAng + (e.code === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 5 : 1)); syncAngle();
   }
@@ -1650,6 +1718,17 @@ function startFromSetup() {
   requestAnimationFrame(() => newGame(cfg));
 }
 $('startBtn').addEventListener('click', startFromSetup);
+// ===================== 화면 꺼짐 방지 =====================
+// 게임하는 동안 휴대폰 화면이 어두워지거나 꺼지지 않게 함 (Screen Wake Lock)
+let wakeLock = null;
+async function keepAwake() {
+  if (!('wakeLock' in navigator) || document.visibilityState !== 'visible' || (wakeLock && !wakeLock.released)) return;
+  try { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); }
+  catch (e) { wakeLock = null; }
+}
+// 브라우저는 사용자 조작이 있어야 허용하므로 터치·클릭·키 입력 때 요청하고, 다른 앱에 갔다 오면 다시 요청
+['pointerdown', 'keydown'].forEach(ev => window.addEventListener(ev, keepAwake, { passive: true }));
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
 function openSetup() { $('bonusAsk').classList.add('hidden'); if (G) { G.over = true; G.play = null; sfx.slide(0); hint(''); } $('confirmBox').classList.add('hidden'); $('result').classList.add('hidden'); $('setup').classList.remove('hidden'); }
 $('btnNew').addEventListener('click', () => { if (G && !G.over) $('confirmBox').classList.remove('hidden'); else openSetup(); });
 $('cfYes').addEventListener('click', openSetup);
