@@ -1588,7 +1588,7 @@ function loadThree() {
   threeLoading = import(THREE_URL).then(m => { THREE = m; }).catch(() => { threeLoading = null; });
   return threeLoading;
 }
-const C3 = { on: false, skip: false, follow: false, dir: null, parts: [], trailPts: [], cam: null, tex: null };
+const C3 = { tws: new Set(), on: false, skip: false, follow: false, dir: null, parts: [], trailPts: [], cam: null, tex: null };
 function canCine() { return !!(THREE && hasGsap() && G && G.set.cine && !(isAiTurn() && aiFast())); }
 function cineInit() {
   if (C3.r) return;
@@ -1680,7 +1680,12 @@ function cineBurst(x, z, n, color, speed, up) {
   }
 }
 const cwait = ms => new Promise(r => setTimeout(r, C3.skip ? 0 : ms));
-const ctw = (o, v) => new Promise(r => { if (C3.skip) { Object.assign(o, Object.fromEntries(Object.entries(v).filter(([k]) => !['duration', 'ease', 'delay'].includes(k)))); r(); } else gsap.to(o, { ...v, onComplete: r }); });
+// 연출용 트윈: 건너뛰기를 누르면 끝 상태로 바로 넘어가고 기다리던 다음 단계가 이어짐
+const ctw = (o, v) => new Promise(r => {
+  const h = { done: false };   // 시간 0이면 onComplete가 바로 불리므로 h로 받음
+  h.t = gsap.to(o, { ...v, duration: C3.skip ? 0 : v.duration, onComplete: () => { h.done = true; if (h.t) C3.tws.delete(h.t); r(); } });
+  if (!h.done) C3.tws.add(h.t);
+});
 // 튕기기 시작: 카메라가 돌 뒤로 내려간 뒤 돌을 출발시킴
 async function cineStart(P, ang) {
   cineInit(); const gid = G.gid;
@@ -1690,7 +1695,7 @@ async function cineStart(P, ang) {
   C3.stone.position.set(s.x, STONE_R * 0.62, s.y); C3.stone.rotation.set(0, 0, 0);
   C3.aim.position.set(s.x, 0, s.y); C3.aim.rotation.y = -ang * Math.PI / 180; C3.aimMat.opacity = 0.9;
   C3.ring.material.opacity = 0;
-  C3.cam = camTop(); gsap.killTweensOf(C3.cam);
+  C3.cam = camTop(); for (const t of [...C3.tws]) t.kill(); C3.tws.clear();
   el.style.opacity = 0; await ctw(el.style, { opacity: 1, duration: 0.25 });
   el.classList.add('cine-bars');
   cineBurst(s.x, s.y, 30, '#ffd54f', 10, 8);
@@ -1717,7 +1722,11 @@ async function cineStop(done) {
   await ctw($('cine').style, { opacity: 0, duration: 0.3 });
   cineHide(); done();
 }
-function cineSkip() { if (!C3.on || C3.skip) return; C3.skip = true; gsap.killTweensOf(C3.cam); if (G && G.play) { gsap.killTweensOf(TS); TS.v = 4; } }
+function cineSkip() {
+  if (!C3.on || C3.skip) return; C3.skip = true;
+  for (const t of [...C3.tws]) t.progress(1);   // 진행 중인 카메라 이동을 끝으로 보냄 (onComplete 실행)
+  if (G && G.play) { gsap.killTweensOf(TS); TS.v = 4; }
+}
 function cineHide() {
   C3.on = false; C3.follow = false;
   const el = $('cine'); el.classList.add('hidden'); el.classList.remove('cine-bars'); el.style.opacity = 1;
