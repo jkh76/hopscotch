@@ -255,7 +255,7 @@ table.res th{color:var(--dim);font-weight:400;font-size:12px}
       <div class="box"><div class="small" style="margin-bottom:4px">기록</div><div id="log"></div></div>
     </aside>
   </main>
-  <footer id="ver">v0.9 2026-11-23</footer>
+  <footer id="ver">v0.9 2026-11-26</footer>
 </div>
 
 <!-- 설정 -->
@@ -551,38 +551,52 @@ function genTerrain() {
 
 // ===================== 바닥 그리기 =====================
 function arenaPath(g) { g.beginPath(); if (G.shape === 'square') g.rect(0, 0, G.S, G.S); else g.arc(G.R, G.R, G.R, 0, Math.PI * 2); }
+// 바닥은 그림 파일로 굽지 않고 매번 벡터로 그림 (확대해도 선명)
+const PATCH_COL = { sand: [255, 226, 130], gravel: [196, 186, 234], hard: [246, 182, 160] };
 function buildGround() {
-  const W = Math.ceil((G.S + 2 * M) * PX);
-  const c = document.createElement('canvas'); c.width = c.height = W;
-  const g = c.getContext('2d'); g.scale(PX, PX); g.translate(M, M);
+  // 질감 무늬를 Path2D 하나로 묶어 둠 (원 안쪽만)
+  for (const p of G.patches) {
+    const pat = new Path2D(), r2 = (p.r - 1.2) ** 2, inC = (x, y) => (x - p.x) ** 2 + (y - p.y) ** 2 < r2;
+    if (p.type === 'sand') {
+      for (let row = 0, y = p.y - p.r; y < p.y + p.r; y += 2.4, row++) for (let x = p.x - p.r + (row % 2 ? 1.2 : 0); x < p.x + p.r; x += 2.4) if (inC(x, y)) { pat.moveTo(x + 0.3, y); pat.arc(x, y, 0.3, 0, Math.PI * 2); }
+    } else if (p.type === 'gravel') {
+      for (let row = 0, y = p.y - p.r; y < p.y + p.r; y += 3.2, row++) for (let x = p.x - p.r + (row % 2 ? 1.6 : 0); x < p.x + p.r; x += 3.2) if (inC(x, y)) { pat.moveTo(x + 0.8, y); pat.ellipse(x, y, 0.8, 0.6, 0.4, 0, Math.PI * 2); }
+    } else {
+      const rr = p.r - 1.2;
+      for (let d = -rr + 1.4; d < rr; d += 2.8) { const h = Math.sqrt(rr * rr - d * d) * 0.7071, cx = p.x + d * 0.7071, cy = p.y + d * 0.7071; pat.moveTo(cx - h, cy + h); pat.lineTo(cx + h, cy - h); }
+    }
+    p.pat = pat;
+  }
+  G.ground = true;
+}
+function drawGround(g, lw) {
   g.fillStyle = '#dcecfb'; g.fillRect(-M, -M, G.S + 2 * M, G.S + 2 * M);
   g.save(); arenaPath(g);
   const bg = g.createRadialGradient(G.R, G.R, 0, G.R, G.R, G.S * 0.75);
-  bg.addColorStop(0, '#fbfffd'); bg.addColorStop(1, '#e6f5f0');
+  bg.addColorStop(0, '#fbfffd'); bg.addColorStop(1, '#e9f6f2');
   g.fillStyle = bg; g.fill(); g.clip();
-  for (const p of G.patches) drawPatch(g, p);
-  g.restore();
-  g.lineJoin = 'round';
-  G.ground = c;
-}
-function drawPatch(g, p) {
-  const base = { sand: [255, 233, 150], gravel: [205, 196, 236], hard: [248, 190, 168] }[p.type];
-  const gr = g.createRadialGradient(p.x, p.y, p.r * 0.55, p.x, p.y, p.r);
-  gr.addColorStop(0, `rgba(${base},0.55)`); gr.addColorStop(1, `rgba(${base},0)`);
-  g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, p.r, 0, Math.PI * 2); g.fill();
-  g.save(); g.beginPath(); g.arc(p.x, p.y, p.r * 0.8, 0, Math.PI * 2); g.clip();
-  const dark = base.map(v => Math.round(v * 0.8));
-  if (p.type === 'sand') {          // 작은 점 무늬
-    g.fillStyle = `rgba(${dark},0.45)`;
-    for (let row = 0, y = p.y - p.r; y < p.y + p.r; y += 2.2, row++) for (let x = p.x - p.r + (row % 2 ? 1.1 : 0); x < p.x + p.r; x += 2.2) { g.beginPath(); g.arc(x, y, 0.22, 0, Math.PI * 2); g.fill(); }
-  } else if (p.type === 'gravel') { // 동글동글 자갈
-    g.fillStyle = `rgba(${dark},0.5)`;
-    for (let row = 0, y = p.y - p.r; y < p.y + p.r; y += 3, row++) for (let x = p.x - p.r + (row % 2 ? 1.5 : 0); x < p.x + p.r; x += 3) { g.beginPath(); g.ellipse(x, y, 0.75, 0.55, 0.4, 0, Math.PI * 2); g.fill(); }
-  } else {                          // 매끈한 사선
-    g.strokeStyle = `rgba(${dark},0.35)`; g.lineWidth = 0.25;
-    for (let d = -2 * p.r; d < 2 * p.r; d += 2.5) { g.beginPath(); g.moveTo(p.x + d - p.r, p.y + p.r); g.lineTo(p.x + d + p.r, p.y - p.r); g.stroke(); }
+  for (const p of G.patches) {
+    const b = PATCH_COL[p.type], d = b.map(v => Math.round(v * 0.72));
+    g.fillStyle = `rgba(${b},0.4)`; g.beginPath(); g.arc(p.x, p.y, p.r, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = `rgba(${d},0.55)`; g.lineWidth = lw * 1.2; g.setLineDash([lw * 5, lw * 4]); g.stroke(); g.setLineDash([]);
+    if (p.type === 'hard') { g.strokeStyle = `rgba(${d},0.45)`; g.lineWidth = 0.3; g.lineCap = 'round'; g.stroke(p.pat); }
+    else { g.fillStyle = `rgba(${d},0.5)`; g.fill(p.pat); }
   }
   g.restore();
+}
+// 땅: 반투명 대신 배경과 섞은 불투명 색으로 칠하고, 테두리는 땅 안쪽으로만 그림
+function landFill(c) { return `rgb(${c[0] * 0.62 + 244 * 0.38 | 0},${c[1] * 0.62 + 251 * 0.38 | 0},${c[2] * 0.62 + 249 * 0.38 | 0})`; }
+function landLine(c) { return `rgb(${c[0] * 0.72 | 0},${c[1] * 0.72 | 0},${c[2] * 0.72 | 0})`; }
+function drawLands(g, lw) {
+  g.save(); arenaPath(g); g.clip(); g.lineJoin = 'round';
+  for (const pl of G.players) {
+    const sh = G.shapes && G.shapes[pl.id]; if (!sh) continue;
+    const c = COLORS[pl.id].rgb;
+    g.fillStyle = landFill(c); g.fill(sh, 'evenodd');
+    g.save(); g.clip(sh, 'evenodd'); g.strokeStyle = landLine(c); g.lineWidth = lw * 4; g.stroke(sh); g.restore();
+  }
+  g.restore();
+  g.lineJoin = 'round'; arenaPath(g); g.strokeStyle = '#6fc0b2'; g.lineWidth = lw * 2.5; g.stroke();
 }
 // 격자 → 벡터 외곽선 (마칭 스퀘어 + 부드럽게 다듬기)
 function contour(arr, val) {
@@ -626,10 +640,12 @@ function contour(arr, val) {
       }
       if (pts.length < 3) continue;
       let P = pts.map(k => [(Math.floor(k / 65536) - 4) * h, (k % 65536 - 4) * h]);
+      let area = 0; for (let q = 0; q < P.length; q++) { const a = P[q], b = P[(q + 1) % P.length]; area += a[0] * b[1] - b[0] * a[1]; }
+      if (Math.abs(area) / 2 < 1.5) continue;   // 1.5cm² 미만 부스러기는 그리지 않음
       // 계단 모양을 곧은 선/곡선으로 단순화 (Douglas-Peucker)
       if (P.length > 8) {
         const half = P.length >> 1;
-        const S = rdp(P.slice(0, half + 1), 0.4).concat(rdp(P.slice(half).concat([P[0]]), 0.4).slice(1, -1));
+        const S = rdp(P.slice(0, half + 1), 0.75).concat(rdp(P.slice(half).concat([P[0]]), 0.75).slice(1, -1));
         if (S.length >= 3) P = S;
       }
       // 모서리만 살짝 둥글게 (긴 변의 모서리는 최대 0.6cm까지만 깎음)
@@ -1473,25 +1489,17 @@ function render(time) {
   const k = baseK() * view.zoom;
   const sx = view.shake ? rand(-1, 1) * view.shake * dpr : 0, sy = view.shake ? rand(-1, 1) * view.shake * dpr : 0;
   ctx.setTransform(k, 0, 0, k, cv.width / 2 - view.cx * k + sx, cv.height / 2 - view.cy * k + sy);
-  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(G.ground, -M, -M, G.S + 2 * M, G.S + 2 * M);
   const lpx = dpr / k;   // 화면 1px
+  drawGround(ctx, lpx);
   if (G.dirty) { rebuildShapes(G.dirtyIds && G.dirtyIds.size ? G.dirtyIds : G.players.map(q => q.id)); G.dirty = false; G.dirtyIds = new Set(); }
+  drawLands(ctx, lpx);
   ctx.save(); arenaPath(ctx); ctx.clip();
-  ctx.lineJoin = 'round';
-  for (const pl of G.players) {
-    const sh = G.shapes && G.shapes[pl.id]; if (!sh) continue;
-    const c = COLORS[pl.id].rgb;
-    ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.6)`; ctx.fill(sh, 'evenodd');
-    ctx.strokeStyle = `rgb(${c[0] * 0.78 | 0},${c[1] * 0.78 | 0},${c[2] * 0.78 | 0})`; ctx.lineWidth = 2 * lpx; ctx.stroke(sh);
-  }
   if (G.pvOn && G.pvPath) {
     const c = COLORS[G.pvColor].rgb, a = 0.35 + 0.25 * Math.sin(time * 6);
     ctx.fillStyle = `rgba(${(c[0] + 255) >> 1},${(c[1] + 255) >> 1},${(c[2] + 255) >> 1},${a + 0.2})`; ctx.fill(G.pvPath, 'evenodd');
     ctx.setLineDash([5 * lpx, 4 * lpx]); ctx.strokeStyle = COLORS[G.pvColor].hex; ctx.lineWidth = 2 * lpx; ctx.stroke(G.pvPath); ctx.setLineDash([]);
   }
   ctx.restore();
-  ctx.lineJoin = 'round'; arenaPath(ctx); ctx.strokeStyle = '#6fc0b2'; ctx.lineWidth = 2.5 * lpx; ctx.stroke();
   const px = 1 / k * dpr;   // 1 css px in world units
   // 본진 번호
   for (const pl of G.players) {
@@ -1505,8 +1513,8 @@ function render(time) {
   // 궤적
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const drawPath = (path, n) => { ctx.beginPath(); ctx.moveTo(path[0].x, path[0].y); for (let i = 1; i < n; i += 2) ctx.lineTo(path[i].x, path[i].y); ctx.lineTo(path[n - 1].x, path[n - 1].y); ctx.stroke(); };
-  ctx.strokeStyle = 'rgba(90,130,125,0.45)'; ctx.lineWidth = Math.max(0.3, 1.6 * px);
-  for (const p of G.trails) if (p.length > 1) drawPath(p, p.length);
+  { const c = COLORS[cur().id].rgb; ctx.strokeStyle = `rgba(${c[0] * 0.72 | 0},${c[1] * 0.72 | 0},${c[2] * 0.72 | 0},0.55)`; }
+  ctx.lineWidth = Math.max(0.3, 1.8 * px);
   if (G.play && G.play.res.path.length > 1) { const n = clamp(Math.floor(G.play.t / SIM_DT) + 1, 1, G.play.res.path.length); if (n > 1) drawPath(G.play.res.path, n); }
   // 다각형 선
   if (G.startPt && G.phase !== 'place') {
@@ -1651,19 +1659,10 @@ function cinePaint() {
   const W = G.S + 2 * M, c = C3.tc, g = c.getContext('2d'), k = c.width / W;
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.width, c.height);
   g.setTransform(k, 0, 0, k, M * k, M * k);
-  g.drawImage(G.ground, -M, -M, W, W);
+  drawGround(g, 0.22);
   if (G.dirty) { rebuildShapes(G.dirtyIds && G.dirtyIds.size ? G.dirtyIds : G.players.map(q => q.id)); G.dirty = false; G.dirtyIds = new Set(); }
-  g.save(); arenaPath(g); g.clip(); g.lineJoin = 'round';
-  for (const pl of G.players) {
-    const sh = G.shapes && G.shapes[pl.id]; if (!sh) continue;
-    const cc = COLORS[pl.id].rgb;
-    g.fillStyle = `rgba(${cc[0]},${cc[1]},${cc[2]},0.6)`; g.fill(sh, 'evenodd');
-    g.strokeStyle = `rgb(${cc[0] * 0.78 | 0},${cc[1] * 0.78 | 0},${cc[2] * 0.78 | 0})`; g.lineWidth = 0.35; g.stroke(sh);
-  }
-  g.restore();
-  arenaPath(g); g.strokeStyle = '#6fc0b2'; g.lineWidth = 0.6; g.stroke();
-  g.lineCap = 'round'; g.strokeStyle = 'rgba(90,130,125,0.45)'; g.lineWidth = 0.35;
-  for (const p of G.trails) if (p.length > 1) { g.beginPath(); g.moveTo(p[0].x, p[0].y); for (let i = 1; i < p.length; i += 2) g.lineTo(p[i].x, p[i].y); g.stroke(); }
+  drawLands(g, 0.18);
+  g.lineCap = 'round';
   if (G.startPt) {
     const pts = [G.startPt, ...G.stops], col = COLORS[cur().id].hex;
     g.setLineDash([1, 1]); g.strokeStyle = col; g.lineWidth = 0.5;
